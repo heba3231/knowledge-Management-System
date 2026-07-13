@@ -29,6 +29,10 @@ let usersCollection;
 let documentsCollection;
 let workshopsCollection;
 let updatesCollection;
+let newsCollection;
+let eventsCollection;
+let contributionsCollection;
+let servicesCollection;
 
 // دالة مساعدة لإنشاء الفهارس بأمان
 async function createIndexSafe(collection, spec, options, nameHint = '') {
@@ -49,6 +53,10 @@ async function connectToMongoDB() {
     documentsCollection = db.collection("documents");
     workshopsCollection = db.collection("workshops");
     updatesCollection = db.collection("updates");
+    newsCollection = db.collection("news");
+    eventsCollection = db.collection("events");
+    contributionsCollection = db.collection("contributions");
+    servicesCollection = db.collection("services");
 
     // إنشاء الفهارس مع تجاهل الأخطاء (مثل وجود فهارس مكررة)
     await createIndexSafe(usersCollection, { email: 1 }, { unique: true }, 'email_unique');
@@ -59,6 +67,10 @@ async function connectToMongoDB() {
     await createIndexSafe(documentsCollection, { status: 1 }, {}, 'status');
     await createIndexSafe(workshopsCollection, { title: "text", description: "text" }, {}, 'workshops_title_text_description_text');
     await createIndexSafe(updatesCollection, { title: "text", description: "text" }, {}, 'updates_title_text_description_text');
+    await createIndexSafe(newsCollection, { title: "text", description: "text" }, {}, 'news_title_text_description_text');
+    await createIndexSafe(eventsCollection, { title: "text", description: "text" }, {}, 'events_title_text_description_text');
+    await createIndexSafe(contributionsCollection, { title: "text", description: "text" }, {}, 'contributions_title_text_description_text');
+    await createIndexSafe(servicesCollection, { title: 1 }, {}, 'services_title');
 
     // 👑 إنشاء حساب أدمن افتراضي
     const defaultAdmin = {
@@ -549,6 +561,429 @@ app.delete("/api/updates/:id", verifyToken, authorize("Admin"), async (req, res)
 });
 
 // ============================================================
+// 📰 مسارات الأخبار (قراءة عامة، كتابة للأدمن)
+// ============================================================
+
+// جلب جميع الأخبار (عام) مع إمكانية التصفية حسب isActive والحد
+app.get("/api/news", async (req, res) => {
+  try {
+    const { limit, isActive } = req.query;
+    const query = {};
+    if (isActive !== undefined) {
+      query.isActive = isActive === 'true';
+    } else {
+      query.isActive = true; // افتراضيًا نعرض النشط فقط
+    }
+    let cursor = newsCollection.find(query).sort({ date: -1 });
+    if (limit) {
+      cursor = cursor.limit(parseInt(limit));
+    }
+    const news = await cursor.toArray();
+    res.json({ success: true, data: news });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// جلب خبر واحد (عام)
+app.get("/api/news/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const newsItem = await newsCollection.findOne({ _id: new ObjectId(id) });
+    if (!newsItem) {
+      return res.status(404).json({ success: false, message: "News not found" });
+    }
+    res.json({ success: true, data: newsItem });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// إضافة خبر جديد (للأدمن فقط)
+app.post("/api/news", verifyToken, authorize("Admin"), upload.single('image'), async (req, res) => {
+  try {
+    const { title, description, date, isActive } = req.body;
+    if (!title) {
+      return res.status(400).json({ success: false, message: "Title is required" });
+    }
+
+    const newNews = {
+      title,
+      description: description || '',
+      image: req.file ? `/uploads/${req.file.filename}` : '',
+      date: date ? new Date(date) : new Date(),
+      isActive: isActive === 'true' ? true : (isActive === 'false' ? false : true),
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const result = await newsCollection.insertOne(newNews);
+    res.status(201).json({
+      success: true,
+      message: "News added successfully",
+      data: { ...newNews, _id: result.insertedId }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// تحديث خبر (للأدمن فقط)
+app.put("/api/news/:id", verifyToken, authorize("Admin"), upload.single('image'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, date, isActive } = req.body;
+    const updateData = { updatedAt: new Date() };
+    if (title) updateData.title = title;
+    if (description !== undefined) updateData.description = description;
+    if (date) updateData.date = new Date(date);
+    if (isActive !== undefined) updateData.isActive = isActive === 'true';
+    if (req.file) {
+      updateData.image = `/uploads/${req.file.filename}`;
+    }
+
+    const result = await newsCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: updateData }
+    );
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ success: false, message: "News not found" });
+    }
+    res.json({ success: true, message: "News updated successfully" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// حذف خبر (للأدمن فقط)
+app.delete("/api/news/:id", verifyToken, authorize("Admin"), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await newsCollection.deleteOne({ _id: new ObjectId(id) });
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ success: false, message: "News not found" });
+    }
+    res.json({ success: true, message: "News deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ============================================================
+// 📅 مسارات الفعاليات (قراءة عامة، كتابة للأدمن)
+// ============================================================
+
+// جلب جميع الفعاليات (عام) مع إمكانية التصفية
+app.get("/api/events", async (req, res) => {
+  try {
+    const { limit, isActive } = req.query;
+    const query = {};
+    if (isActive !== undefined) {
+      query.isActive = isActive === 'true';
+    } else {
+      query.isActive = true;
+    }
+    let cursor = eventsCollection.find(query).sort({ date: -1 });
+    if (limit) {
+      cursor = cursor.limit(parseInt(limit));
+    }
+    const events = await cursor.toArray();
+    res.json({ success: true, data: events });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// جلب فعالية واحدة (عام)
+app.get("/api/events/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const event = await eventsCollection.findOne({ _id: new ObjectId(id) });
+    if (!event) {
+      return res.status(404).json({ success: false, message: "Event not found" });
+    }
+    res.json({ success: true, data: event });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// إضافة فعالية (للأدمن فقط)
+app.post("/api/events", verifyToken, authorize("Admin"), upload.single('image'), async (req, res) => {
+  try {
+    const { title, description, date, location, isActive } = req.body;
+    if (!title) {
+      return res.status(400).json({ success: false, message: "Title is required" });
+    }
+
+    const newEvent = {
+      title,
+      description: description || '',
+      image: req.file ? `/uploads/${req.file.filename}` : '',
+      date: date ? new Date(date) : new Date(),
+      location: location || '',
+      isActive: isActive === 'true' ? true : (isActive === 'false' ? false : true),
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const result = await eventsCollection.insertOne(newEvent);
+    res.status(201).json({
+      success: true,
+      message: "Event added successfully",
+      data: { ...newEvent, _id: result.insertedId }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// تحديث فعالية (للأدمن فقط)
+app.put("/api/events/:id", verifyToken, authorize("Admin"), upload.single('image'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, date, location, isActive } = req.body;
+    const updateData = { updatedAt: new Date() };
+    if (title) updateData.title = title;
+    if (description !== undefined) updateData.description = description;
+    if (date) updateData.date = new Date(date);
+    if (location !== undefined) updateData.location = location;
+    if (isActive !== undefined) updateData.isActive = isActive === 'true';
+    if (req.file) {
+      updateData.image = `/uploads/${req.file.filename}`;
+    }
+
+    const result = await eventsCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: updateData }
+    );
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ success: false, message: "Event not found" });
+    }
+    res.json({ success: true, message: "Event updated successfully" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// حذف فعالية (للأدمن فقط)
+app.delete("/api/events/:id", verifyToken, authorize("Admin"), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await eventsCollection.deleteOne({ _id: new ObjectId(id) });
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ success: false, message: "Event not found" });
+    }
+    res.json({ success: true, message: "Event deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ============================================================
+// 🤝 مسارات المبادرات المجتمعية (قراءة عامة، كتابة للأدمن)
+// ============================================================
+
+// جلب جميع المبادرات (عام) مع إمكانية التصفية
+app.get("/api/contributions", async (req, res) => {
+  try {
+    const { limit, isActive } = req.query;
+    const query = {};
+    if (isActive !== undefined) {
+      query.isActive = isActive === 'true';
+    } else {
+      query.isActive = true;
+    }
+    let cursor = contributionsCollection.find(query).sort({ date: -1 });
+    if (limit) {
+      cursor = cursor.limit(parseInt(limit));
+    }
+    const contributions = await cursor.toArray();
+    res.json({ success: true, data: contributions });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// جلب مبادرة واحدة (عام)
+app.get("/api/contributions/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const contribution = await contributionsCollection.findOne({ _id: new ObjectId(id) });
+    if (!contribution) {
+      return res.status(404).json({ success: false, message: "Contribution not found" });
+    }
+    res.json({ success: true, data: contribution });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// إضافة مبادرة جديدة (للأدمن فقط)
+app.post("/api/contributions", verifyToken, authorize("Admin"), upload.single('image'), async (req, res) => {
+  try {
+    const { title, description, type, date, isActive } = req.body;
+    if (!title) {
+      return res.status(400).json({ success: false, message: "Title is required" });
+    }
+
+    const newContribution = {
+      title,
+      description: description || '',
+      image: req.file ? `/uploads/${req.file.filename}` : '',
+      type: type || 'تطوع',
+      date: date ? new Date(date) : new Date(),
+      isActive: isActive === 'true' ? true : (isActive === 'false' ? false : true),
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const result = await contributionsCollection.insertOne(newContribution);
+    res.status(201).json({
+      success: true,
+      message: "Contribution added successfully",
+      data: { ...newContribution, _id: result.insertedId }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// تحديث مبادرة (للأدمن فقط)
+app.put("/api/contributions/:id", verifyToken, authorize("Admin"), upload.single('image'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, type, date, isActive } = req.body;
+    const updateData = { updatedAt: new Date() };
+    if (title) updateData.title = title;
+    if (description !== undefined) updateData.description = description;
+    if (type) updateData.type = type;
+    if (date) updateData.date = new Date(date);
+    if (isActive !== undefined) updateData.isActive = isActive === 'true';
+    if (req.file) {
+      updateData.image = `/uploads/${req.file.filename}`;
+    }
+
+    const result = await contributionsCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: updateData }
+    );
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ success: false, message: "Contribution not found" });
+    }
+    res.json({ success: true, message: "Contribution updated successfully" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// حذف مبادرة (للأدمن فقط)
+app.delete("/api/contributions/:id", verifyToken, authorize("Admin"), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await contributionsCollection.deleteOne({ _id: new ObjectId(id) });
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ success: false, message: "Contribution not found" });
+    }
+    res.json({ success: true, message: "Contribution deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ============================================================
+// 🩺 مسارات الخدمات (قراءة عامة، كتابة للأدمن)
+// ============================================================
+
+// جلب جميع الخدمات (عام) مع الترتيب
+app.get("/api/services", async (req, res) => {
+  try {
+    const services = await servicesCollection.find().sort({ order: 1, createdAt: -1 }).toArray();
+    res.json({ success: true, data: services });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// جلب خدمة واحدة (عام)
+app.get("/api/services/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const service = await servicesCollection.findOne({ _id: new ObjectId(id) });
+    if (!service) {
+      return res.status(404).json({ success: false, message: "Service not found" });
+    }
+    res.json({ success: true, data: service });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// إضافة خدمة جديدة (للأدمن فقط)
+app.post("/api/services", verifyToken, authorize("Admin"), async (req, res) => {
+  try {
+    const { title, description, order } = req.body;
+    if (!title) {
+      return res.status(400).json({ success: false, message: "Title is required" });
+    }
+
+    const newService = {
+      title,
+      description: description || '',
+      order: order ? parseInt(order) : 0,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const result = await servicesCollection.insertOne(newService);
+    res.status(201).json({
+      success: true,
+      message: "Service added successfully",
+      data: { ...newService, _id: result.insertedId }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// تحديث خدمة (للأدمن فقط)
+app.put("/api/services/:id", verifyToken, authorize("Admin"), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, order } = req.body;
+    const updateData = { updatedAt: new Date() };
+    if (title) updateData.title = title;
+    if (description !== undefined) updateData.description = description;
+    if (order !== undefined) updateData.order = parseInt(order);
+
+    const result = await servicesCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: updateData }
+    );
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ success: false, message: "Service not found" });
+    }
+    res.json({ success: true, message: "Service updated successfully" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// حذف خدمة (للأدمن فقط)
+app.delete("/api/services/:id", verifyToken, authorize("Admin"), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await servicesCollection.deleteOne({ _id: new ObjectId(id) });
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ success: false, message: "Service not found" });
+    }
+    res.json({ success: true, message: "Service deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ============================================================
 // 📊 مسارات الإحصائيات (عامة)
 // ============================================================
 
@@ -682,6 +1117,10 @@ connectToMongoDB()
       console.log(`📄 Documents API:   /api/documents (GET public, POST/PUT/DELETE Admin only)`);
       console.log(`🎓 Workshops API:    /api/workshops (GET public, POST/PUT/DELETE Admin only)`);
       console.log(`📢 Updates API:      /api/updates (GET public, POST/DELETE Admin only)`);
+      console.log(`📰 News API:         /api/news (GET public, POST/PUT/DELETE Admin only)`);
+      console.log(`📅 Events API:       /api/events (GET public, POST/PUT/DELETE Admin only)`);
+      console.log(`🤝 Contributions API:/api/contributions (GET public, POST/PUT/DELETE Admin only)`);
+      console.log(`🩺 Services API:     /api/services (GET public, POST/PUT/DELETE Admin only)`);
       console.log(`📊 Stats API:        /api/stats (public)`);
       console.log(`👤 Users API:        /api/users (Admin only)`);
       console.log(`🔐 Login:            /api/auth/login (Admin only)`);
