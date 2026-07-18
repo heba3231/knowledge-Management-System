@@ -35,6 +35,10 @@ import ManageServices from './Pages/ManageServices';
 import AddService from './Pages/AddService';
 import EditService from './Pages/EditService';
 
+// ✅ استيراد صفحات Policy و Protocol
+import ManagePolicy from './Pages/ManagePolicy';
+import ManageProtocol from './Pages/ManageProtocol';
+
 import RoleBasedRoute from './protection/RoleBasedRoute';
 import './App.css';
 
@@ -87,6 +91,10 @@ function App() {
             <Route path="/admin/services" element={<RoleBasedRoute allowedRoles={['Admin']}><ManageServices /></RoleBasedRoute>} />
             <Route path="/admin/services/add" element={<RoleBasedRoute allowedRoles={['Admin']}><AddService /></RoleBasedRoute>} />
             <Route path="/admin/services/edit/:id" element={<RoleBasedRoute allowedRoles={['Admin']}><EditService /></RoleBasedRoute>} />
+
+            {/* ✅ مسارات إدارة Policy و Protocol */}
+            <Route path="/admin/policy" element={<RoleBasedRoute allowedRoles={['Admin']}><ManagePolicy /></RoleBasedRoute>} />
+            <Route path="/admin/protocol" element={<RoleBasedRoute allowedRoles={['Admin']}><ManageProtocol /></RoleBasedRoute>} />
           </Routes>
         </main>
         <Footer />

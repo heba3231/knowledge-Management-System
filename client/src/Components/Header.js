@@ -58,7 +58,6 @@ const Header = () => {
 
   return (
     <header style={styles.header}>
-      {/* صف واحد يحتوي على جميع العناصر */}
       <div style={styles.topRow}>
         {/* الجهة اليسرى: شريط البحث + أيقونة المستخدم */}
         <div style={styles.leftGroup}>
@@ -87,20 +86,31 @@ const Header = () => {
                 className="header-avatar"
               >
                 <span>{getInitials(user.name)}</span>
-                <span style={styles.avatarBadge}>{user.role || 'Staff'}</span>
+                <span style={styles.avatarBadge}>{user.role || 'موظف'}</span>
               </div>
 
               {dropdownOpen && (
                 <div style={styles.dropdown} className="header-dropdown">
                   <div style={styles.dropdownHeader}>
-                    <strong>{user.name || 'User'}</strong>
+                    <strong>{user.name || 'مستخدم'}</strong>
                     <span style={styles.dropdownEmail}>{user.email || ''}</span>
                   </div>
                   <div style={styles.dropdownDivider} />
-                  <Link to="/profile" style={styles.dropdownItem} className="dropdown-item">👤 الملف الشخصي</Link>
+                  <Link to="/profile" style={styles.dropdownItem} className="dropdown-item">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                    الملف الشخصي
+                  </Link>
                   <div style={styles.dropdownDivider} />
                   <button onClick={handleLogout} style={styles.dropdownLogout} className="dropdown-logout">
-                    🚪 تسجيل الخروج
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                      <polyline points="16 17 21 12 16 7" />
+                      <line x1="21" y1="12" x2="9" y2="12" />
+                    </svg>
+                    تسجيل الخروج
                   </button>
                 </div>
               )}
@@ -116,8 +126,6 @@ const Header = () => {
         <nav style={styles.nav}>
           <Link to="/" style={styles.link} className="header-link">الرئيسية</Link>
           <Link to="/dashboard" style={styles.link} className="header-link">لوحة التحكم</Link>
-          <Link to="/documents" style={styles.link} className="header-link">المستندات</Link>
-          <Link to="/workshops" style={styles.link} className="header-link">ورش العمل</Link>
           <Link to="/analytics" style={styles.link} className="header-link">تحليلات</Link>
 
           {token && isAdmin && (
@@ -140,13 +148,101 @@ const Header = () => {
 
               {adminDropdownOpen && (
                 <div style={styles.adminDropdown} className="header-admin-dropdown">
-                  <Link to="/admin/news" style={styles.adminDropdownItem} className="admin-dropdown-item">📰 الأخبار</Link>
-                  <Link to="/admin/events" style={styles.adminDropdownItem} className="admin-dropdown-item">📅 الفعاليات</Link>
-                  <Link to="/admin/contributions" style={styles.adminDropdownItem} className="admin-dropdown-item">🤝 المبادرات</Link>
-                  <Link to="/admin/services" style={styles.adminDropdownItem} className="admin-dropdown-item">🩺 الخدمات</Link>
+                  {/* المستندات */}
+                  <Link to="/documents" style={styles.adminDropdownItem} className="admin-dropdown-item">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                      <polyline points="10 9 9 9 8 9" />
+                    </svg>
+                    المستندات
+                  </Link>
+                  {/* ورش العمل */}
+                  <Link to="/workshops" style={styles.adminDropdownItem} className="admin-dropdown-item">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
+                      <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                      <path d="M6 12v5c3 3 9 3 12 0v-5" />
+                    </svg>
+                    ورش العمل
+                  </Link>
+                  {/* السياسات */}
+                  <Link to="/admin/policy" style={styles.adminDropdownItem} className="admin-dropdown-item">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                      <polyline points="9 12 11 14 15 10" />
+                    </svg>
+                    السياسات
+                  </Link>
+                  {/* البروتوكولات */}
+                  <Link to="/admin/protocol" style={styles.adminDropdownItem} className="admin-dropdown-item">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
+                      <path d="M4 4v16h16V4H4z" />
+                      <line x1="8" y1="9" x2="16" y2="9" />
+                      <line x1="8" y1="13" x2="13" y2="13" />
+                      <line x1="8" y1="17" x2="12" y2="17" />
+                    </svg>
+                    البروتوكولات
+                  </Link>
+                  {/* الأخبار */}
+                  <Link to="/admin/news" style={styles.adminDropdownItem} className="admin-dropdown-item">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                      <polyline points="10 9 9 9 8 9" />
+                    </svg>
+                    الأخبار
+                  </Link>
+                  {/* الفعاليات */}
+                  <Link to="/admin/events" style={styles.adminDropdownItem} className="admin-dropdown-item">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                      <line x1="16" y1="2" x2="16" y2="6" />
+                      <line x1="8" y1="2" x2="8" y2="6" />
+                      <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                    الفعاليات
+                  </Link>
+                  {/* المبادرات */}
+                  <Link to="/admin/contributions" style={styles.adminDropdownItem} className="admin-dropdown-item">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                      <polyline points="22 4 12 14.01 9 11.01" />
+                    </svg>
+                    المبادرات
+                  </Link>
+                  {/* الخدمات */}
+                  <Link to="/admin/services" style={styles.adminDropdownItem} className="admin-dropdown-item">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                      <polyline points="10 9 9 9 8 9" />
+                    </svg>
+                    الخدمات
+                  </Link>
                   <div style={styles.dropdownDivider} />
-                  <Link to="/categories" style={styles.adminDropdownItem} className="admin-dropdown-item">📂 التصنيفات</Link>
-                  <Link to="/users" style={styles.adminDropdownItem} className="admin-dropdown-item">👥 المستخدمين</Link>
+                  {/* التصنيفات */}
+                  <Link to="/categories" style={styles.adminDropdownItem} className="admin-dropdown-item">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
+                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                    </svg>
+                    التصنيفات
+                  </Link>
+                  {/* المستخدمين */}
+                  <Link to="/users" style={styles.adminDropdownItem} className="admin-dropdown-item">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                      <circle cx="9" cy="7" r="4" />
+                      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                    المستخدمين
+                  </Link>
                 </div>
               )}
             </div>
@@ -155,8 +251,7 @@ const Header = () => {
 
         {/* الجهة اليمنى: الصور + النص */}
         <div style={styles.logo}>
-                      <span style={styles.logoText}>مجمع صحم الصحي</span>
-
+          <span style={styles.logoText}>مجمع صحم الصحي</span>
           <Link to="/" style={styles.logoLink}>
             <img src={img1} alt="مجمع صحم الصحي" style={styles.logoImage} />
             <img src={img2} alt="مجمع صحم الصحي" style={styles.logoImage} />
@@ -167,7 +262,7 @@ const Header = () => {
   );
 };
 
-// ===== الأنماط =====
+// ===== الأنماط (نفسها مع تعديل بسيط في عرض القائمة) =====
 const styles = {
   header: {
     display: 'flex',
@@ -188,7 +283,6 @@ const styles = {
     gap: '16px',
     flexWrap: 'wrap',
   },
-  // الجهة اليسرى
   leftGroup: {
     display: 'flex',
     alignItems: 'center',
@@ -283,7 +377,8 @@ const styles = {
   dropdownEmail: { fontSize: '12px', color: '#64748B' },
   dropdownDivider: { height: '1px', background: '#E2E8F0', margin: '6px 12px' },
   dropdownItem: {
-    display: 'block',
+    display: 'flex',
+    alignItems: 'center',
     padding: '8px 16px',
     color: '#0F172A',
     textDecoration: 'none',
@@ -295,7 +390,8 @@ const styles = {
     fontFamily: 'inherit',
   },
   dropdownLogout: {
-    display: 'block',
+    display: 'flex',
+    alignItems: 'center',
     width: '100%',
     textAlign: 'left',
     padding: '8px 16px',
@@ -321,7 +417,6 @@ const styles = {
     transition: 'background 0.2s, color 0.2s',
     fontFamily: 'inherit',
   },
-  // المنتصف: الروابط
   nav: {
     display: 'flex',
     alignItems: 'center',
@@ -340,7 +435,6 @@ const styles = {
     transition: 'background 0.2s, color 0.2s',
     fontFamily: 'inherit',
   },
-  // زر الإدارة
   adminSection: {
     position: 'relative',
     display: 'flex',
@@ -367,13 +461,14 @@ const styles = {
     background: '#FFFFFF',
     borderRadius: '12px',
     padding: '6px 0',
-    minWidth: '180px',
+    minWidth: '200px',
     boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
     zIndex: 100,
     border: '1px solid #E2E8F0',
   },
   adminDropdownItem: {
-    display: 'block',
+    display: 'flex',
+    alignItems: 'center',
     padding: '8px 16px',
     color: '#0F172A',
     textDecoration: 'none',
@@ -384,7 +479,6 @@ const styles = {
     margin: '0 6px',
     fontFamily: 'inherit',
   },
-  // الجهة اليمنى: اللوجو
   logo: {
     display: 'flex',
     alignItems: 'center',
