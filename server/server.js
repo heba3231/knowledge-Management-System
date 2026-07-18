@@ -58,11 +58,12 @@ async function connectToMongoDB() {
     contributionsCollection = db.collection("contributions");
     servicesCollection = db.collection("services");
 
-    // إنشاء الفهارس مع تجاهل الأخطاء (مثل وجود فهارس مكررة)
+    // إنشاء الفهارس مع تجاهل الأخطاء
     await createIndexSafe(usersCollection, { email: 1 }, { unique: true }, 'email_unique');
     await createIndexSafe(usersCollection, { staffNumber: 1 }, { unique: true, sparse: true }, 'staffNumber_unique');
     await createIndexSafe(documentsCollection, { title: "text", description: "text" }, {}, 'title_text_description_text');
     await createIndexSafe(documentsCollection, { category: 1 }, {}, 'category');
+    await createIndexSafe(documentsCollection, { subCategory: 1 }, {}, 'subCategory'); // ✅ إضافة فهرس subCategory
     await createIndexSafe(documentsCollection, { department: 1 }, {}, 'department');
     await createIndexSafe(documentsCollection, { status: 1 }, {}, 'status');
     await createIndexSafe(workshopsCollection, { title: "text", description: "text" }, {}, 'workshops_title_text_description_text');
@@ -122,7 +123,7 @@ async function connectToMongoDB() {
     console.log("✅ MongoDB connected successfully");
   } catch (error) {
     console.error("❌ MongoDB connection error:", error.message);
-    throw error; // سنتعامل معه في مكان الاستدعاء
+    throw error;
   }
 }
 
@@ -208,7 +209,6 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(401).json({ success: false, message: "Account is deactivated" });
     }
 
-    // ✅ التأكد من أن المستخدم هو أدمن
     if (user.role !== "Admin") {
       return res.status(403).json({ success: false, message: "Access denied. Admin only." });
     }
@@ -252,10 +252,21 @@ app.post("/api/auth/login", async (req, res) => {
 // 📄 مسارات المستندات (قراءة عامة، كتابة للأدمن)
 // ============================================================
 
-// جلب جميع المستندات (عام)
+// ✅ جلب جميع المستندات مع دعم تصفية subCategory
 app.get("/api/documents", async (req, res) => {
   try {
-    const documents = await documentsCollection.find({}, { projection: { fileData: 0 } }).toArray();
+    const { category, subCategory, department, status, limit } = req.query;
+    const query = {};
+    if (category) query.category = category;
+    if (subCategory) query.subCategory = subCategory;
+    if (department) query.department = department;
+    if (status) query.status = status;
+
+    let cursor = documentsCollection.find(query, { projection: { fileData: 0 } });
+    if (limit) {
+      cursor = cursor.limit(parseInt(limit));
+    }
+    const documents = await cursor.toArray();
     res.json({ success: true, data: documents });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -276,15 +287,16 @@ app.get("/api/documents/:id", async (req, res) => {
   }
 });
 
-// بحث في المستندات (عام)
+// ✅ بحث في المستندات مع دعم subCategory
 app.get("/api/documents/search", async (req, res) => {
   try {
-    const { q, category, department, status } = req.query;
+    const { q, category, subCategory, department, status } = req.query;
     const query = {};
     if (q && q.trim()) {
       query.$text = { $search: q.trim() };
     }
     if (category) query.category = category;
+    if (subCategory) query.subCategory = subCategory;
     if (department) query.department = department;
     if (status) query.status = status;
 
@@ -295,57 +307,77 @@ app.get("/api/documents/search", async (req, res) => {
   }
 });
 
-// إضافة مستند (للأدمن فقط)
+// ✅ إضافة مستند (الملف اختياري للسياسات والبروتوكولات)
 app.post("/api/documents", verifyToken, authorize("Admin"), upload.single('file'), async (req, res) => {
   try {
-    const { title, category, department, description, status } = req.body;
-    if (!title || !req.file) {
-      return res.status(400).json({ success: false, message: "Title and file are required" });
+    const { title, category, subCategory, department, description, status } = req.body;
+
+    if (!title) {
+      return res.status(400).json({ success: false, message: "Title is required" });
+    }
+
+    // التحقق: إذا لم تكن الفئة Policy أو Protocol، يجب رفع ملف
+    const isPolicyOrProtocol = (category === 'Policy' || category === 'Protocol');
+    if (!isPolicyOrProtocol && !req.file) {
+      return res.status(400).json({ success: false, message: "File is required for this category" });
     }
 
     const newDocument = {
       title,
       category: category || 'Protocol',
+      subCategory: subCategory || '',
       department: department || 'General',
       description: description || '',
       status: status || 'Published',
-      fileUrl: `/uploads/${req.file.filename}`,
-      fileSize: req.file.size,
-      fileType: req.file.mimetype,
       version: 1,
       uploadedBy: req.user.id,
       createdAt: new Date(),
       updatedAt: new Date()
     };
 
+    // إذا تم رفع ملف
+    if (req.file) {
+      newDocument.fileUrl = `/uploads/${req.file.filename}`;
+      newDocument.fileSize = req.file.size;
+      newDocument.fileType = req.file.mimetype;
+    } else {
+      // للسياسات والبروتوكولات، لا يوجد ملف
+      newDocument.fileUrl = null;
+      newDocument.fileSize = null;
+      newDocument.fileType = null;
+    }
+
     const result = await documentsCollection.insertOne(newDocument);
     res.status(201).json({
       success: true,
-      message: "Document uploaded successfully",
+      message: "Document created successfully",
       data: { ...newDocument, _id: result.insertedId }
     });
   } catch (error) {
+    console.error("Error adding document:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// تحديث مستند (للأدمن فقط)
+// ✅ تحديث مستند (مع دعم subCategory والملف اختياري)
 app.put("/api/documents/:id", verifyToken, authorize("Admin"), upload.single('file'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, category, department, description, status } = req.body;
-    const updateData = {};
+    const { title, category, subCategory, department, description, status } = req.body;
+    const updateData = { updatedAt: new Date() };
+
     if (title) updateData.title = title;
     if (category) updateData.category = category;
+    if (subCategory) updateData.subCategory = subCategory;
     if (department) updateData.department = department;
     if (description) updateData.description = description;
     if (status) updateData.status = status;
+
     if (req.file) {
       updateData.fileUrl = `/uploads/${req.file.filename}`;
       updateData.fileSize = req.file.size;
       updateData.fileType = req.file.mimetype;
     }
-    updateData.updatedAt = new Date();
 
     const result = await documentsCollection.updateOne(
       { _id: new ObjectId(id) },
@@ -448,11 +480,9 @@ app.put("/api/workshops/:id", verifyToken, authorize("Admin"), upload.fields([
     if (title) updateData.title = title;
     if (description) updateData.description = description;
 
-    // معالجة الصور والفيديوهات الجديدة
     const newImages = req.files['images'] ? req.files['images'].map(f => `/uploads/${f.filename}`) : [];
     const newVideos = req.files['videos'] ? req.files['videos'].map(f => `/uploads/${f.filename}`) : [];
 
-    // دمج مع القائمة الحالية (إذا تم إرسالها)
     let images = [];
     let videos = [];
     if (existingImages) {
@@ -564,7 +594,6 @@ app.delete("/api/updates/:id", verifyToken, authorize("Admin"), async (req, res)
 // 📰 مسارات الأخبار (قراءة عامة، كتابة للأدمن)
 // ============================================================
 
-// جلب جميع الأخبار (عام) مع إمكانية التصفية حسب isActive والحد
 app.get("/api/news", async (req, res) => {
   try {
     const { limit, isActive } = req.query;
@@ -572,7 +601,7 @@ app.get("/api/news", async (req, res) => {
     if (isActive !== undefined) {
       query.isActive = isActive === 'true';
     } else {
-      query.isActive = true; // افتراضيًا نعرض النشط فقط
+      query.isActive = true;
     }
     let cursor = newsCollection.find(query).sort({ date: -1 });
     if (limit) {
@@ -585,7 +614,6 @@ app.get("/api/news", async (req, res) => {
   }
 });
 
-// جلب خبر واحد (عام)
 app.get("/api/news/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -599,7 +627,6 @@ app.get("/api/news/:id", async (req, res) => {
   }
 });
 
-// إضافة خبر جديد (للأدمن فقط)
 app.post("/api/news", verifyToken, authorize("Admin"), upload.single('image'), async (req, res) => {
   try {
     const { title, description, date, isActive } = req.body;
@@ -628,7 +655,6 @@ app.post("/api/news", verifyToken, authorize("Admin"), upload.single('image'), a
   }
 });
 
-// تحديث خبر (للأدمن فقط)
 app.put("/api/news/:id", verifyToken, authorize("Admin"), upload.single('image'), async (req, res) => {
   try {
     const { id } = req.params;
@@ -655,7 +681,6 @@ app.put("/api/news/:id", verifyToken, authorize("Admin"), upload.single('image')
   }
 });
 
-// حذف خبر (للأدمن فقط)
 app.delete("/api/news/:id", verifyToken, authorize("Admin"), async (req, res) => {
   try {
     const { id } = req.params;
@@ -673,7 +698,6 @@ app.delete("/api/news/:id", verifyToken, authorize("Admin"), async (req, res) =>
 // 📅 مسارات الفعاليات (قراءة عامة، كتابة للأدمن)
 // ============================================================
 
-// جلب جميع الفعاليات (عام) مع إمكانية التصفية
 app.get("/api/events", async (req, res) => {
   try {
     const { limit, isActive } = req.query;
@@ -694,7 +718,6 @@ app.get("/api/events", async (req, res) => {
   }
 });
 
-// جلب فعالية واحدة (عام)
 app.get("/api/events/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -708,7 +731,6 @@ app.get("/api/events/:id", async (req, res) => {
   }
 });
 
-// إضافة فعالية (للأدمن فقط)
 app.post("/api/events", verifyToken, authorize("Admin"), upload.single('image'), async (req, res) => {
   try {
     const { title, description, date, location, isActive } = req.body;
@@ -738,7 +760,6 @@ app.post("/api/events", verifyToken, authorize("Admin"), upload.single('image'),
   }
 });
 
-// تحديث فعالية (للأدمن فقط)
 app.put("/api/events/:id", verifyToken, authorize("Admin"), upload.single('image'), async (req, res) => {
   try {
     const { id } = req.params;
@@ -766,7 +787,6 @@ app.put("/api/events/:id", verifyToken, authorize("Admin"), upload.single('image
   }
 });
 
-// حذف فعالية (للأدمن فقط)
 app.delete("/api/events/:id", verifyToken, authorize("Admin"), async (req, res) => {
   try {
     const { id } = req.params;
@@ -784,7 +804,6 @@ app.delete("/api/events/:id", verifyToken, authorize("Admin"), async (req, res) 
 // 🤝 مسارات المبادرات المجتمعية (قراءة عامة، كتابة للأدمن)
 // ============================================================
 
-// جلب جميع المبادرات (عام) مع إمكانية التصفية
 app.get("/api/contributions", async (req, res) => {
   try {
     const { limit, isActive } = req.query;
@@ -805,7 +824,6 @@ app.get("/api/contributions", async (req, res) => {
   }
 });
 
-// جلب مبادرة واحدة (عام)
 app.get("/api/contributions/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -819,7 +837,6 @@ app.get("/api/contributions/:id", async (req, res) => {
   }
 });
 
-// إضافة مبادرة جديدة (للأدمن فقط)
 app.post("/api/contributions", verifyToken, authorize("Admin"), upload.single('image'), async (req, res) => {
   try {
     const { title, description, type, date, isActive } = req.body;
@@ -849,7 +866,6 @@ app.post("/api/contributions", verifyToken, authorize("Admin"), upload.single('i
   }
 });
 
-// تحديث مبادرة (للأدمن فقط)
 app.put("/api/contributions/:id", verifyToken, authorize("Admin"), upload.single('image'), async (req, res) => {
   try {
     const { id } = req.params;
@@ -877,7 +893,6 @@ app.put("/api/contributions/:id", verifyToken, authorize("Admin"), upload.single
   }
 });
 
-// حذف مبادرة (للأدمن فقط)
 app.delete("/api/contributions/:id", verifyToken, authorize("Admin"), async (req, res) => {
   try {
     const { id } = req.params;
@@ -895,7 +910,6 @@ app.delete("/api/contributions/:id", verifyToken, authorize("Admin"), async (req
 // 🩺 مسارات الخدمات (قراءة عامة، كتابة للأدمن)
 // ============================================================
 
-// جلب جميع الخدمات (عام) مع الترتيب
 app.get("/api/services", async (req, res) => {
   try {
     const services = await servicesCollection.find().sort({ order: 1, createdAt: -1 }).toArray();
@@ -905,7 +919,6 @@ app.get("/api/services", async (req, res) => {
   }
 });
 
-// جلب خدمة واحدة (عام)
 app.get("/api/services/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -919,7 +932,6 @@ app.get("/api/services/:id", async (req, res) => {
   }
 });
 
-// إضافة خدمة جديدة (للأدمن فقط)
 app.post("/api/services", verifyToken, authorize("Admin"), async (req, res) => {
   try {
     const { title, description, order } = req.body;
@@ -946,7 +958,6 @@ app.post("/api/services", verifyToken, authorize("Admin"), async (req, res) => {
   }
 });
 
-// تحديث خدمة (للأدمن فقط)
 app.put("/api/services/:id", verifyToken, authorize("Admin"), async (req, res) => {
   try {
     const { id } = req.params;
@@ -969,7 +980,6 @@ app.put("/api/services/:id", verifyToken, authorize("Admin"), async (req, res) =
   }
 });
 
-// حذف خدمة (للأدمن فقط)
 app.delete("/api/services/:id", verifyToken, authorize("Admin"), async (req, res) => {
   try {
     const { id } = req.params;
@@ -1107,7 +1117,6 @@ app.get("/", (req, res) => {
 
 const PORT = 5000;
 
-// بدء الخادم فقط بعد نجاح الاتصال
 connectToMongoDB()
   .then(() => {
     app.listen(PORT, "0.0.0.0", () => {

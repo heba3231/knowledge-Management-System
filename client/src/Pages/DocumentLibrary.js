@@ -18,7 +18,11 @@ const DocumentLibrary = () => {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (response.data.success) {
-          setDocuments(response.data.data);
+          // ✅ استبعاد المستندات من نوع Policy و Protocol
+          const filtered = response.data.data.filter(
+            doc => doc.category !== 'Policy' && doc.category !== 'Protocol'
+          );
+          setDocuments(filtered);
         }
       } catch (error) {
         console.error('Error fetching documents:', error);

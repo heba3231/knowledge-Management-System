@@ -1,50 +1,48 @@
-// client/src/Pages/ManageProtocol.js
+// client/src/components/pages/ManageProtocol.js
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useSelector } from 'react-redux';
 
 const BASE_URL = 'http://localhost:5000';
 
 const ManageProtocol = () => {
-  const navigate = useNavigate();
   const { token } = useSelector((state) => state.staff);
-  
-  // التبويب النشط (القسم)
-  const [activeTab, setActiveTab] = useState('ER');
-  const [documents, setDocuments] = useState([]);
+  const [activeTab, setActiveTab] = useState('all');
+  const [protocols, setProtocols] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // أقسام البروتوكولات
   const tabs = [
+    { key: 'all', label: 'الكل' },
     { key: 'ER', label: 'الطوارئ' },
     { key: 'ICU', label: 'العناية المركزة' },
     { key: 'Pharmacy', label: 'الصيدلية' },
     { key: 'Lab', label: 'المختبر' },
   ];
 
-  // جلب المستندات حسب الفئة والقسم الفرعي
   useEffect(() => {
-    const fetchDocuments = async () => {
+    const fetchProtocols = async () => {
       setLoading(true);
       try {
-        const response = await axios.get(
-          `${BASE_URL}/api/documents?category=Protocol&subCategory=${activeTab}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const url = activeTab === 'all'
+          ? `${BASE_URL}/api/documents?category=Protocol`
+          : `${BASE_URL}/api/documents?category=Protocol&subCategory=${activeTab}`;
+        const response = await axios.get(url, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         if (response.data.success) {
-          setDocuments(response.data.data);
+          setProtocols(response.data.data);
         } else {
-          setError('فشل في تحميل البروتوكولات.');
+          setError('فشل في تحميل البروتوكولات');
         }
       } catch (err) {
-        setError('تعذر تحميل البروتوكولات. حاول مرة أخرى.');
+        setError('حدث خطأ أثناء تحميل البروتوكولات');
       } finally {
         setLoading(false);
       }
     };
-    fetchDocuments();
+    fetchProtocols();
   }, [activeTab, token]);
 
   const handleDelete = async (id) => {
@@ -53,46 +51,31 @@ const ManageProtocol = () => {
       await axios.delete(`${BASE_URL}/api/documents/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setDocuments(documents.filter(doc => doc._id !== id));
+      setProtocols(protocols.filter(p => p._id !== id));
     } catch (err) {
-      alert('فشل الحذف.');
+      alert('فشل الحذف');
     }
   };
 
-  const handleDownload = (fileUrl) => {
-    if (!fileUrl) return;
-    const fullUrl = fileUrl.startsWith('http') ? fileUrl : BASE_URL + fileUrl;
-    const link = document.createElement('a');
-    link.href = fullUrl;
-    link.download = fileUrl.split('/').pop() || 'document';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  // الحصول على اسم القسم الفرعي
+  const getSubCategoryLabel = (key) => {
+    const found = tabs.find(t => t.key === key);
+    return found ? found.label : key || 'عام';
   };
 
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <h1 style={styles.pageTitle}>📜 البروتوكولات</h1>
-        <Link 
-          to={`/documents/add?category=Protocol&subCategory=${activeTab}`} 
-          style={styles.addBtn}
-        >
-          + إضافة بروتوكول جديد
-        </Link>
+        <h1 style={styles.pageTitle}>📜 إدارة البروتوكولات</h1>
+        <Link to="/admin/protocol/add" style={styles.addBtn}>+ إضافة بروتوكول جديد</Link>
       </div>
 
-      {/* التبويبات */}
       <div style={styles.tabs}>
         {tabs.map(tab => (
           <button
             key={tab.key}
-            style={{
-              ...styles.tab,
-              ...(activeTab === tab.key ? styles.tabActive : {})
-            }}
+            style={{ ...styles.tab, ...(activeTab === tab.key ? styles.tabActive : {}) }}
             onClick={() => setActiveTab(tab.key)}
-            className="protocol-tab"
           >
             {tab.label}
           </button>
@@ -103,7 +86,7 @@ const ManageProtocol = () => {
 
       {loading ? (
         <div style={styles.loading}>جاري التحميل...</div>
-      ) : documents.length === 0 ? (
+      ) : protocols.length === 0 ? (
         <div style={styles.empty}>لا توجد بروتوكولات في هذا القسم.</div>
       ) : (
         <div style={styles.tableWrapper}>
@@ -111,37 +94,31 @@ const ManageProtocol = () => {
             <thead>
               <tr>
                 <th>العنوان</th>
-                <th>القسم</th>
-                <th>الحالة</th>
+                <th>القسم الفرعي</th>
+                <th>المحتوى</th>
                 <th>تاريخ التحديث</th>
                 <th>الإجراءات</th>
               </tr>
             </thead>
             <tbody>
-              {documents.map((doc) => (
-                <tr key={doc._id}>
+              {protocols.map(p => (
+                <tr key={p._id}>
                   <td>
-                    <Link to={`/documents/${doc._id}`} style={styles.docLink}>
-                      {doc.title}
+                    <Link to={`/documents/${p._id}`} style={styles.docLink}>
+                      {p.title}
                     </Link>
                   </td>
-                  <td>{doc.department || 'عام'}</td>
-                  <td>
-                    <span style={{
-                      ...styles.statusBadge,
-                      background: doc.status === 'Published' ? '#D1FAE5' : '#FEF3C7'
-                    }}>
-                      {doc.status === 'Published' ? 'منشور' : 'مسودة'}
-                    </span>
+                  <td>{getSubCategoryLabel(p.subCategory)}</td>
+                  <td style={styles.contentCell}>
+                    {p.description?.slice(0, 80)}
+                    {p.description?.length > 80 && '...'}
                   </td>
-                  <td>{new Date(doc.updatedAt).toLocaleDateString('ar-EG')}</td>
+                  <td>{new Date(p.updatedAt).toLocaleDateString('ar-EG')}</td>
                   <td>
-                    <Link to={`/documents/edit/${doc._id}`} style={styles.actionIcon}>✏️</Link>
-                    <button onClick={() => handleDownload(doc.fileUrl)} style={styles.actionIcon}>⬇️</button>
-                    <button 
-                      onClick={() => handleDelete(doc._id)} 
-                      style={{ ...styles.actionIcon, color: '#DC2626' }}
-                    >
+                    <Link to={`/admin/protocol/edit/${p._id}`} style={styles.actionIcon} title="تعديل المحتوى">
+                      ✏️
+                    </Link>
+                    <button onClick={() => handleDelete(p._id)} style={{ ...styles.actionIcon, color: '#DC2626' }} title="حذف">
                       🗑️
                     </button>
                   </td>
@@ -159,18 +136,18 @@ const styles = {
   container: { padding: '30px', maxWidth: '1200px', margin: '0 auto', background: '#f7fafc', minHeight: '80vh' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', marginBottom: '20px' },
   pageTitle: { fontSize: '32px', color: '#2d3748' },
-  addBtn: { padding: '10px 20px', background: '#2563EB', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '600', textDecoration: 'none' },
+  addBtn: { padding: '10px 20px', background: '#2563EB', color: 'white', borderRadius: '8px', textDecoration: 'none', fontWeight: '600' },
   tabs: { display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' },
-  tab: { padding: '10px 24px', background: '#E2E8F0', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '500', fontSize: '15px', transition: '0.2s' },
+  tab: { padding: '10px 24px', background: '#E2E8F0', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '500', fontSize: '15px' },
   tabActive: { background: '#2563EB', color: 'white' },
   error: { background: '#FEF2F2', color: '#EF4444', padding: '12px', borderRadius: '8px', marginBottom: '20px' },
   loading: { textAlign: 'center', color: '#718096' },
   empty: { textAlign: 'center', color: '#a0aec0' },
   tableWrapper: { background: 'white', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', overflowX: 'auto' },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: '14px' },
-  statusBadge: { padding: '4px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: '600' },
   docLink: { color: '#2563EB', textDecoration: 'none' },
-  actionIcon: { background: 'transparent', border: 'none', cursor: 'pointer', marginRight: '8px', color: '#475569', fontSize: '16px' },
+  actionIcon: { background: 'transparent', border: 'none', cursor: 'pointer', marginRight: '8px', fontSize: '18px', color: '#475569' },
+  contentCell: { maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#4B5563' },
 };
 
 export default ManageProtocol;

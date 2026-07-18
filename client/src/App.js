@@ -35,9 +35,13 @@ import ManageServices from './Pages/ManageServices';
 import AddService from './Pages/AddService';
 import EditService from './Pages/EditService';
 
-// ✅ استيراد صفحات Policy و Protocol
+// ✅ استيراد صفحات Policy و Protocol من المسار الصحيح (components/pages)
 import ManagePolicy from './Pages/ManagePolicy';
 import ManageProtocol from './Pages/ManageProtocol';
+import AddPolicy from './Pages/AddPolicy';
+import EditPolicy from './Pages/EditPolicy';
+import AddProtocol from './Pages/AddProtocol';
+import EditProtocol from './Pages/EditProtocol';
 
 import RoleBasedRoute from './protection/RoleBasedRoute';
 import './App.css';
@@ -53,7 +57,7 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/admin-login" element={<AdminLogin />} />
 
-            {/* صفحات التصفح العامة (لا تحتاج تسجيل دخول) */}
+            {/* صفحات التصفح العامة */}
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/documents" element={<DocumentLibrary />} />
             <Route path="/documents/:id" element={<DocumentDetails />} />
@@ -63,7 +67,7 @@ function App() {
             <Route path="/search" element={<Search />} />
             <Route path="/analytics" element={<AnalyticsDashboard />} />
 
-            {/* صفحات الإدارة (للأدمن فقط) */}
+            {/* صفحات الإدارة العامة */}
             <Route path="/documents/add" element={<RoleBasedRoute allowedRoles={['Admin']}><AddDocument /></RoleBasedRoute>} />
             <Route path="/workshops/add" element={<RoleBasedRoute allowedRoles={['Admin']}><AddWorkshop /></RoleBasedRoute>} />
             <Route path="/workshops/edit/:id" element={<RoleBasedRoute allowedRoles={['Admin']}><UpdateWorkshop /></RoleBasedRoute>} />
@@ -82,7 +86,7 @@ function App() {
             <Route path="/admin/events/add" element={<RoleBasedRoute allowedRoles={['Admin']}><AddEvent /></RoleBasedRoute>} />
             <Route path="/admin/events/edit/:id" element={<RoleBasedRoute allowedRoles={['Admin']}><EditEvent /></RoleBasedRoute>} />
 
-            {/* مسارات إدارة المبادرات المجتمعية */}
+            {/* مسارات إدارة المبادرات */}
             <Route path="/admin/contributions" element={<RoleBasedRoute allowedRoles={['Admin']}><ManageContributions /></RoleBasedRoute>} />
             <Route path="/admin/contributions/add" element={<RoleBasedRoute allowedRoles={['Admin']}><AddContribution /></RoleBasedRoute>} />
             <Route path="/admin/contributions/edit/:id" element={<RoleBasedRoute allowedRoles={['Admin']}><EditContribution /></RoleBasedRoute>} />
@@ -92,9 +96,15 @@ function App() {
             <Route path="/admin/services/add" element={<RoleBasedRoute allowedRoles={['Admin']}><AddService /></RoleBasedRoute>} />
             <Route path="/admin/services/edit/:id" element={<RoleBasedRoute allowedRoles={['Admin']}><EditService /></RoleBasedRoute>} />
 
-            {/* ✅ مسارات إدارة Policy و Protocol */}
+            {/* ✅ مسارات إدارة السياسات */}
             <Route path="/admin/policy" element={<RoleBasedRoute allowedRoles={['Admin']}><ManagePolicy /></RoleBasedRoute>} />
+            <Route path="/admin/policy/add" element={<RoleBasedRoute allowedRoles={['Admin']}><AddPolicy /></RoleBasedRoute>} />
+            <Route path="/admin/policy/edit/:id" element={<RoleBasedRoute allowedRoles={['Admin']}><EditPolicy /></RoleBasedRoute>} />
+
+            {/* ✅ مسارات إدارة البروتوكولات */}
             <Route path="/admin/protocol" element={<RoleBasedRoute allowedRoles={['Admin']}><ManageProtocol /></RoleBasedRoute>} />
+            <Route path="/admin/protocol/add" element={<RoleBasedRoute allowedRoles={['Admin']}><AddProtocol /></RoleBasedRoute>} />
+            <Route path="/admin/protocol/edit/:id" element={<RoleBasedRoute allowedRoles={['Admin']}><EditProtocol /></RoleBasedRoute>} />
           </Routes>
         </main>
         <Footer />
