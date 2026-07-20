@@ -18,13 +18,42 @@ dns.setServers(["8.8.8.8", "8.8.4.4"]);
 
 const app = express();
 
-// إعداد CORS - استخدام CLIENT_URL من البيئة أو السماح للكل في التطوير
+// ============================================================
+// ✅ إعداد CORS المتقدم - السماح لعدة أصول
+// ============================================================
+
+// قائمة الأصول المسموح بها (يمكنك إضافة المزيد عند الحاجة)
+const allowedOrigins = [
+  'http://localhost:3000',           // التطوير المحلي (React)
+  'http://localhost:5000',           // التطوير المحلي (Express)
+  'https://knowledge-management-system-1-2n88.onrender.com', // الرابط القديم للـ Frontend
+  'https://knowledge-management-system-5-ddfy.onrender.com', // الرابط الجديد للـ Frontend
+  process.env.CLIENT_URL,            // الرابط من متغير البيئة (مرونة إضافية)
+].filter(Boolean); // إزالة أي قيم فارغة (undefined)
+
+// إعداد CORS المتقدم
 const corsOptions = {
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  origin: function (origin, callback) {
+    // السماح للطلبات التي ليس لها Origin (مثل Postman أو الطلبات من نفس الخادم)
+    if (!origin) return callback(null, true);
+    
+    // التحقق مما إذا كان Origin موجوداً في القائمة المسموح بها
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.warn(`⚠️ CORS blocked for origin: ${origin}`);
+      callback(new Error(`CORS policy: Origin ${origin} not allowed`));
+    }
+  },
   optionsSuccessStatus: 200,
   credentials: true,
 };
+
 app.use(cors(corsOptions));
+
+// ============================================================
+// باقي إعدادات Express
+// ============================================================
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
