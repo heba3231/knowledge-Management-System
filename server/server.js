@@ -1,3 +1,4 @@
+// server/server.js
 import express from "express";
 import { MongoClient, ObjectId } from "mongodb";
 import cors from "cors";
@@ -7,28 +8,42 @@ import jwt from "jsonwebtoken";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import dotenv from "dotenv";
 
+// تحميل متغيرات البيئة من ملف .env
+dotenv.config();
+
+// إعدادات DNS
 dns.setServers(["8.8.8.8", "8.8.4.4"]);
 
 const app = express();
-//app.use(cors());
-app.use(cors({
-  origin: process.env.CLIENT_URL,
-  credentials: true
-}));
+
+// إعداد CORS - استخدام CLIENT_URL من البيئة أو السماح للكل في التطوير
+const corsOptions = {
+  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  optionsSuccessStatus: 200,
+  credentials: true,
+};
+app.use(cors(corsOptions));
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-//const JWT_SECRET = "91ac4edf1366c70464f8ca03334623e5ce11f993537456b0baa4ae9b50337eece994d0d466f10195b2cc2481dc5d8c2455afc63f51eedc6b75957bea01ca2366";
+// قراءة المتغيرات من البيئة
 const JWT_SECRET = process.env.JWT_SECRET;
+const MONGO_URI = process.env.MONGO_URI;
+const PORT = process.env.PORT || 5000;
+
+if (!JWT_SECRET || !MONGO_URI) {
+  console.error("❌ JWT_SECRET or MONGO_URI is not defined in environment variables.");
+  process.exit(1);
+}
+
 // ============================================================
 // 🗄️ اتصال MongoDB (Native Driver)
 // ============================================================
 
-const uri = process.env.MONGO_URI;
-// const uri = "mongodb+srv://admin:admin@cluster0.1f4z64f.mongodb.net/?appName=Cluster0";
-const client = new MongoClient(uri);
+const client = new MongoClient(MONGO_URI);
 
 let db;
 let usersCollection;
@@ -69,7 +84,7 @@ async function connectToMongoDB() {
     await createIndexSafe(usersCollection, { staffNumber: 1 }, { unique: true, sparse: true }, 'staffNumber_unique');
     await createIndexSafe(documentsCollection, { title: "text", description: "text" }, {}, 'title_text_description_text');
     await createIndexSafe(documentsCollection, { category: 1 }, {}, 'category');
-    await createIndexSafe(documentsCollection, { subCategory: 1 }, {}, 'subCategory'); // ✅ إضافة فهرس subCategory
+    await createIndexSafe(documentsCollection, { subCategory: 1 }, {}, 'subCategory');
     await createIndexSafe(documentsCollection, { department: 1 }, {}, 'department');
     await createIndexSafe(documentsCollection, { status: 1 }, {}, 'status');
     await createIndexSafe(workshopsCollection, { title: "text", description: "text" }, {}, 'workshops_title_text_description_text');
@@ -341,13 +356,11 @@ app.post("/api/documents", verifyToken, authorize("Admin"), upload.single('file'
       updatedAt: new Date()
     };
 
-    // إذا تم رفع ملف
     if (req.file) {
       newDocument.fileUrl = `/uploads/${req.file.filename}`;
       newDocument.fileSize = req.file.size;
       newDocument.fileType = req.file.mimetype;
     } else {
-      // للسياسات والبروتوكولات، لا يوجد ملف
       newDocument.fileUrl = null;
       newDocument.fileSize = null;
       newDocument.fileType = null;
@@ -1121,7 +1134,6 @@ app.get("/", (req, res) => {
 // 🚀 تشغيل الخادم (بعد الاتصال بقاعدة البيانات)
 // ============================================================
 
-const PORT = process.env.PORT || 5000;
 connectToMongoDB()
   .then(() => {
     app.listen(PORT, "0.0.0.0", () => {

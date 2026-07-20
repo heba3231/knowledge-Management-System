@@ -7,11 +7,13 @@ import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 import { Autoplay, Pagination } from 'swiper/modules';
 
-// ✅ استيراد api بدلاً من axios
-import api from '../../services/api';
+// ✅ استيراد api المركزي بدلاً من axios
+import api from '../services/api';
 
 // ✅ استخدام متغير البيئة للرابط الأساسي (بدون /api)
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_BASE_URL = process.env.REACT_APP_API_URL
+  ? process.env.REACT_APP_API_URL.replace('/api', '')
+  : 'http://localhost:5000';
 
 const Home = () => {
   const [stats, setStats] = useState({ totalUsers: 0, totalDocuments: 0, totalWorkshops: 0, totalUpdates: 0 });
@@ -27,7 +29,6 @@ const Home = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // ✅ استخدام api.get بدلاً من axios.get
         const [statsRes, newsRes, eventsRes, servicesRes, contribRes, policiesRes, protocolsRes, updatesRes] = await Promise.all([
           api.get('/stats'),
           api.get('/news?limit=5'),
@@ -160,7 +161,6 @@ const Home = () => {
             {news.map((item) => (
               <SwiperSlide key={item._id}>
                 <div style={styles.slide}>
-                  {/* ✅ استخدام API_BASE_URL بدلاً من BASE_URL */}
                   <img 
                     src={item.image ? `${API_BASE_URL}${item.image}` : ''} 
                     alt={item.title} 
@@ -302,7 +302,6 @@ const Home = () => {
             {events.map((event) => (
               <SwiperSlide key={event._id}>
                 <div style={styles.eventCard}>
-                  {/* ✅ استخدام API_BASE_URL بدلاً من BASE_URL */}
                   {event.image && <img src={`${API_BASE_URL}${event.image}`} alt={event.title} style={styles.eventImage} />}
                   <div style={styles.eventInfo}>
                     <h4>{event.title}</h4>
@@ -332,7 +331,6 @@ const Home = () => {
         <div style={styles.contributionsGrid}>
           {contributions.map((item) => (
             <div key={item._id} style={styles.contributionCard}>
-              {/* ✅ استخدام API_BASE_URL بدلاً من BASE_URL */}
               {item.image && <img src={`${API_BASE_URL}${item.image}`} alt={item.title} style={styles.contribImage} />}
               <h4>{item.title}</h4>
               <p>{item.description}</p>
