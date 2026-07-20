@@ -1,8 +1,10 @@
 // src/features/StaffSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
+// ✅ استيراد api بدلاً من axios مباشر
+import api from '../services/api';
 
-const API_URL = 'http://localhost:5000/api/auth';
+// ❌ حذف API_URL الثابت
+// const API_URL = 'http://localhost:5000/api/auth';
 
 export const loginUser = createAsyncThunk(
   'staff/login',
@@ -18,7 +20,8 @@ export const loginUser = createAsyncThunk(
       }
       payload.password = password;
 
-      const response = await axios.post(`${API_URL}/login`, payload);
+      // ✅ استخدام api بدلاً من axios مع المسار النسبي
+      const response = await api.post('/auth/login', payload);
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
       return response.data;
@@ -32,7 +35,8 @@ export const registerUser = createAsyncThunk(
   'staff/register',
   async (userData, { rejectWithValue }) => {
     try {
-      const response = await axios.post(`${API_URL}/register`, userData);
+      // ✅ استخدام api
+      const response = await api.post('/auth/register', userData);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Registration failed');
@@ -44,10 +48,8 @@ export const fetchProfile = createAsyncThunk(
   'staff/profile',
   async (_, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/profile`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      // ✅ استخدام api (التوكن يُضاف تلقائياً بواسطة interceptor)
+      const response = await api.get('/auth/profile');
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch profile');
