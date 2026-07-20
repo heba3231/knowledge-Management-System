@@ -18,9 +18,7 @@ const Footer = () => {
           <Link to="/login" style={{ ...styles.link, ...styles.adminLink }} className="footer-admin-link">
             🔐 Admin Login
           </Link>
-          <Link to="/staff-login" style={{ ...styles.link, ...styles.staffLink }} className="footer-staff-link">
-            👤 Staff Login
-          </Link>
+          
         </div>
       </div>
     </footer>
