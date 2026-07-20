@@ -1,4 +1,4 @@
-// client/src/services/api.js
+/* // client/src/services/api.js
 import axios from 'axios';
 
 // استخدام متغير البيئة أو localhost للتطوير المحلي
@@ -27,6 +27,53 @@ api.interceptors.request.use(
 );
 
 // معالجة الأخطاء العامة (مثل انتهاء التوكن)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      if (window.location.pathname !== '/admin-login') {
+        window.location.href = '/admin-login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default api; */
+
+
+
+
+
+// client/src/services/api.js
+import axios from 'axios';
+
+// ✅ استخدام متغير البيئة مع قيمة افتراضية للتطوير المحلي
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+
+const api = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  timeout: 30000,
+});
+
+// ✅ إضافة التوكن تلقائياً لكل الطلبات
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// ✅ معالجة الأخطاء العامة (مثل انتهاء التوكن)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
