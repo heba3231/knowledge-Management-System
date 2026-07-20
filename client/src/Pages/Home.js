@@ -1,14 +1,17 @@
 // client/src/components/pages/Home.js
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 import { Autoplay, Pagination } from 'swiper/modules';
 
-const BASE_URL = 'http://localhost:5000';
+// ✅ استيراد api بدلاً من axios
+import api from '../../services/api';
+
+// ✅ استخدام متغير البيئة للرابط الأساسي (بدون /api)
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const Home = () => {
   const [stats, setStats] = useState({ totalUsers: 0, totalDocuments: 0, totalWorkshops: 0, totalUpdates: 0 });
@@ -24,15 +27,16 @@ const Home = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // ✅ استخدام api.get بدلاً من axios.get
         const [statsRes, newsRes, eventsRes, servicesRes, contribRes, policiesRes, protocolsRes, updatesRes] = await Promise.all([
-          axios.get(`${BASE_URL}/api/stats`),
-          axios.get(`${BASE_URL}/api/news?limit=5`),
-          axios.get(`${BASE_URL}/api/events?limit=5`),
-          axios.get(`${BASE_URL}/api/services`),
-          axios.get(`${BASE_URL}/api/contributions?limit=3`),
-          axios.get(`${BASE_URL}/api/documents?category=Policy&limit=10`),
-          axios.get(`${BASE_URL}/api/documents?category=Protocol&limit=10`),
-          axios.get(`${BASE_URL}/api/updates?limit=5`),
+          api.get('/stats'),
+          api.get('/news?limit=5'),
+          api.get('/events?limit=5'),
+          api.get('/services'),
+          api.get('/contributions?limit=3'),
+          api.get('/documents?category=Policy&limit=10'),
+          api.get('/documents?category=Protocol&limit=10'),
+          api.get('/updates?limit=5'),
         ]);
         if (statsRes.data.success) setStats(statsRes.data.data);
         if (newsRes.data.success) setNews(newsRes.data.data);
@@ -156,7 +160,12 @@ const Home = () => {
             {news.map((item) => (
               <SwiperSlide key={item._id}>
                 <div style={styles.slide}>
-                  <img src={item.image ? `${BASE_URL}${item.image}` : ''} alt={item.title} style={styles.slideImage} />
+                  {/* ✅ استخدام API_BASE_URL بدلاً من BASE_URL */}
+                  <img 
+                    src={item.image ? `${API_BASE_URL}${item.image}` : ''} 
+                    alt={item.title} 
+                    style={styles.slideImage} 
+                  />
                   <div style={styles.slideOverlay}>
                     <h2 style={styles.slideTitle}>{item.title}</h2>
                     <p style={styles.slideDesc}>{item.description}</p>
@@ -293,7 +302,8 @@ const Home = () => {
             {events.map((event) => (
               <SwiperSlide key={event._id}>
                 <div style={styles.eventCard}>
-                  {event.image && <img src={`${BASE_URL}${event.image}`} alt={event.title} style={styles.eventImage} />}
+                  {/* ✅ استخدام API_BASE_URL بدلاً من BASE_URL */}
+                  {event.image && <img src={`${API_BASE_URL}${event.image}`} alt={event.title} style={styles.eventImage} />}
                   <div style={styles.eventInfo}>
                     <h4>{event.title}</h4>
                     <p>{event.description}</p>
@@ -322,7 +332,8 @@ const Home = () => {
         <div style={styles.contributionsGrid}>
           {contributions.map((item) => (
             <div key={item._id} style={styles.contributionCard}>
-              {item.image && <img src={`${BASE_URL}${item.image}`} alt={item.title} style={styles.contribImage} />}
+              {/* ✅ استخدام API_BASE_URL بدلاً من BASE_URL */}
+              {item.image && <img src={`${API_BASE_URL}${item.image}`} alt={item.title} style={styles.contribImage} />}
               <h4>{item.title}</h4>
               <p>{item.description}</p>
               <span style={styles.contribType}>{item.type}</span>
