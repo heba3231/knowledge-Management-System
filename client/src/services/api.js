@@ -11,9 +11,10 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 30000,
 });
 
-// إضافة التوكن تلقائياً لكل الطلبات إذا كان موجوداً
+// إضافة التوكن تلقائياً لكل الطلبات
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -23,6 +24,21 @@ api.interceptors.request.use(
     return config;
   },
   (error) => Promise.reject(error)
+);
+
+// معالجة الأخطاء العامة (مثل انتهاء التوكن)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      if (window.location.pathname !== '/admin-login') {
+        window.location.href = '/admin-login';
+      }
+    }
+    return Promise.reject(error);
+  }
 );
 
 export default api;
